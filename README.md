@@ -1,47 +1,94 @@
 # MailLens Telegram Bot
 
-MailLens inspects email syntax, DNS MX records, and SMTP server responses.
+MailLens is a Telegram-based email and domain inspection tool that checks email address syntax, retrieves DNS MX records, and performs SMTP diagnostics to assess mail server responses and security restrictions.
 
 ## Features
 
-- `/check user@example.com` checks one address.
-- `/mx example.com` retrieves MX records.
-- `/checklist` prompts for a TXT file and produces a CSV report.
-- TXT files accept newlines, commas, semicolons, spaces, and tabs.
-- Duplicate email addresses are removed.
-- SMTP checks are sequential and rate-limited.
-- SMTP outcomes distinguish mailbox-not-found signals, accepted-but-unconfirmed responses, temporary failures, connection failures, and server security/policy restrictions.
+- `/check user@example.com` — Checks a single email address.
+- `/mx example.com` — Retrieves the domain's MX records.
+- `/checklist` — Prompts for a TXT file and generates a CSV report.
+- Supports TXT files containing email addresses separated by newlines, commas, semicolons, spaces, or tabs.
+- Automatically removes duplicate email addresses.
+- Performs SMTP checks sequentially with configurable delays.
+- Classifies SMTP outcomes, including:
+  - Mailbox-not-found signals.
+  - Accepted-but-unconfirmed responses.
+  - Temporary failures.
+  - Connection failures.
+  - Server security and policy restrictions.
+  - Sender IP or domain reputation restrictions.
 
 ## Setup
 
-1. Install Node.js 20 or newer.
-2. Run `npm install`.
+### Requirements
+
+- Node.js 20 or newer.
+- A Telegram bot token from [BotFather](https://t.me/BotFather).
+
+### Installation
+
+1. Clone the repository.
+2. Install dependencies:
+
+   ```bash
+   npm install
+   ```
+
 3. Copy `.env.example` to `.env`.
-4. Set `BOT_TOKEN` and `SENDER_EMAIL`.
-5. Run `npm start`.
+4. Configure the environment variables.
+5. Start the bot:
 
-## Environment variables
+   ```bash
+   npm start
+   ```
 
-- `BOT_TOKEN`: Telegram bot token from BotFather.
-- `SENDER_EMAIL`: sender address used in the SMTP envelope.
-- `HELO_HOSTNAME`: hostname sent with EHLO.
-- `SMTP_TIMEOUT`: socket timeout in milliseconds.
-- `SMTP_DELAY_MS`: delay between addresses in a bulk job.
-- `MAX_FILE_BYTES`: maximum TXT upload size.
-- `MAX_EMAILS`: maximum unique addresses per TXT file.
+## Environment Variables
 
-## Important SMTP limitations
+| Variable | Description |
+|---|---|
+| `BOT_TOKEN` | Telegram bot token obtained from BotFather. |
+| `SENDER_EMAIL` | Sender address used in the SMTP envelope. |
+| `HELO_HOSTNAME` | Hostname supplied during the SMTP EHLO handshake. |
+| `SMTP_TIMEOUT` | SMTP connection timeout in milliseconds. |
+| `SMTP_DELAY_MS` | Delay between addresses in bulk checks. |
+| `MAX_FILE_BYTES` | Maximum permitted TXT upload size. |
+| `MAX_EMAILS` | Maximum number of unique email addresses per TXT file. |
 
-MailLens attempts SMTP recipient-stage diagnostics for domains with MX records. It does not send message content (`DATA`), and it does not use proxies or attempt to bypass provider protections.
+## SMTP Diagnostics and Limitations
 
-Only test addresses and domains you own or are explicitly authorised to assess. Many providers intentionally suppress recipient-existence information, accept all recipients, defer checks, or reject verification based on sender IP reputation or policy. Therefore:
+MailLens performs SMTP recipient-stage diagnostics for domains with discoverable MX records.
+
+It establishes an SMTP connection, performs the EHLO handshake, submits the configured sender address using `MAIL FROM`, and checks recipient acceptance using `RCPT TO`.
+
+MailLens does not send message content using the SMTP `DATA` command. It does not use proxies or attempt to bypass email provider security controls.
+
+Only test email addresses and domains you own or are explicitly authorised to assess.
+
+Many email providers intentionally suppress recipient-existence information, accept all recipients, defer verification, or reject recipient checks based on sender IP reputation and security policies.
+
+Consequently:
 
 - `accepted_unconfirmed` does not prove that a mailbox exists.
-- `mailbox_not_found_signal` is a server response signal, not absolute proof.
-- `server_security_or_policy_restriction` means the server declined the verification attempt under a security or policy rule.
-- `sender_ip_or_domain_blocklisted` means the response appears to identify a reputation/blocklist issue.
-- `connection_blocked` can also occur when the hosting provider blocks outbound TCP port 25.
+- `mailbox_not_found_signal` indicates an explicit server response suggesting that the mailbox does not exist, but is not absolute proof.
+- `server_security_or_policy_restriction` indicates that the server declined the verification attempt under a security or policy rule.
+- `sender_ip_or_domain_blocklisted` indicates that the response appears to identify a sender reputation or blocklist issue.
+- `connection_blocked` may occur when the hosting provider blocks outbound TCP port 25.
+
+DNS MX lookup and SMTP diagnostics are separate operations. MX lookup can succeed even when SMTP connectivity is unavailable.
 
 ## Deployment
 
-Deploy as a separate Docker application or worker in Coolify. No inbound port or public domain is required for Telegram long polling. The host must permit outbound HTTPS to Telegram and outbound SMTP TCP port 25 for SMTP diagnostics. If outbound port 25 is blocked, MX lookup will still work, but SMTP checks will report connection errors.
+MailLens can be deployed as a separate Docker application or worker in Coolify.
+
+A public domain or exposed inbound application port is not required because the bot uses Telegram long polling.
+
+The deployment environment must permit:
+
+- Outbound HTTPS connections to the Telegram Bot API.
+- Outbound SMTP connections over TCP port 25 for SMTP diagnostics.
+
+If outbound port 25 is blocked, MailLens can continue performing email syntax and MX record checks, but SMTP diagnostics will report connection failures.
+
+## License
+
+Private project. All rights reserved.
